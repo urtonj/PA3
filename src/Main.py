@@ -12,21 +12,15 @@ class parser():
     def parse(self, tree, grammar):
         parser.tree = tree
         parser.generate_subsequences(parser.tagged_list_from_tree(parser.tree))
-        #print parser.sequences
         for rule in grammar:
             for sequence in parser.sequences:
                 parser.test_sequence(sequence, rule)
-            #parser.reset_rule_traits()
-            #parser.process_rule(rule[1])
     
     def test_sequence(self, sequence, rule):
         print "\n\nTesting sequence: " + parser.print_sequence(sequence) + " with rule: " + str(rule[1])
         index = 0; sequence_rejected = False; result = ""
         for entity in rule[1]:
             print "Testing rule entity: " + str(entity)
-            #if index >= len(sequence):
-            #    print "Successful match!"
-            #    continue
             if sequence_rejected:
                 print "Sequence rejected..."
                 continue
@@ -92,59 +86,13 @@ class parser():
             str = str + " " + item.tag
         return str
     
-    def reset_rule_traits(self):
-        parser.rule_index = 0; parser.list_index = 0; 
-        parser.rule_rejected = False
-    
-    def set_entity_traits(self, entity_tag, entity_type, list_tag, list_index):
-        parser.entity_tag = entity_tag; parser.entity_type = entity_type
-        parser.list_tag = list_tag; parser.list_index = list_index
-        parser.entity_rejected = False
-            
-    def process_rule(self, rule):
-        for entity in rule:
-            while not parser.rule_rejected:
-                parser.set_entity_traits(entity[0], entity[1], parser.node_list[parser.list_index].tag, parser.node_list[parser.list_index].index)
-                parser.process_entity(entity)
-        
-    def process_entity(self, entity):
-        print parser.entity_tag, parser.entity_type, parser.list_tag
-        #print parser.tree
-        for node in parser.node_list:
-            while not parser.entity_rejected:
-                print node.tag
-                
-                if isinstance(parser.entity_type, int):
-                    if parser.entity_tag == parser.list_tag:
-                        parser.output = parser.output + " " + parser.entity_tag; print parser.output
-                        parser.entity_rejected = True
-                    
-                elif parser.entity_type == "?":
-                    if parser.entity_tag == parser.list_tag:
-                        parser.output = parser.output + " " + parser.entity_tag; print parser.output
-                        parser.entity_rejected = True
-
-                elif parser.entity_type == "+":
-                    print "Type +"
-                    parser.rule_rejected = True
-                elif parser.entity_type == "*":
-                    print "Type *"
-                    parser.rule_rejected = True
-                else:
-                    print "Invalid rule operator found."
-        #if parser.entity_tag == parser.list_tag:
-        #    print "Match: %s" % parser.tree[parser.list_index]
-        
-    
 class node():
     def __init__(self, tag, word, index): 
         self.tag = tag; self.word = word; self.index = index
         
     def print_node(self):
         print "TAG: %s || Body: %s || Index: %s" % (self.tag, self.word, self.index) 
-                       
-
-    
+                         
 def chunker():
     parser = nltk.RegexpParser(original_grammar)
     test_tree = treebank.tagged_sents()[0]
