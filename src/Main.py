@@ -3,11 +3,7 @@ from nltk.corpus import treebank
 
 class parser():
     
-    rule_index = 0; list_index = 0
-    entity_tag = ""; entity_type = ""; entity_rejected = False
-    list_tag = ""; rule_rejected = False
-    output = ""
-    tree = None; node_list = []; sequences = []
+    tree = None; node_list = []; sequences = []; matches = []
     
     def parse(self, tree, grammar):
         parser.tree = tree
@@ -15,59 +11,58 @@ class parser():
         for rule in grammar:
             for sequence in parser.sequences:
                 parser.test_sequence(sequence, rule)
+            parser.update_tree(parser.tree, parser.matches[0], rule[0])
     
     def test_sequence(self, sequence, rule):
+        index = 0; sequence_rejected = False; index_array = []
         print "\n\nTesting sequence: " + parser.print_sequence(sequence) + " with rule: " + str(rule[1])
-        index = 0; sequence_rejected = False; result = ""
         for entity in rule[1]:
-            print "Testing rule entity: " + str(entity)
             if sequence_rejected:
-                print "Sequence rejected..."
                 continue
             entity_rejected = False; tag = entity[0]; type = entity[1]
             while not entity_rejected:
                 if index >= len(sequence):
-                    print "Successful match!"; entity_rejected = True
                     continue 
-                elif sequence[index].tag == "," or sequence[index].tag == ".":
-                    result = result + " " + sequence[index].tag
-                    print "Match: " + result
-                    index += 1
+                elif index > 0 and (sequence[index].tag == ","):
+                    index_array.append(index); index += 1
                 elif type == "+":
                     if sequence[index].tag == tag:
-                        result = result + " " + sequence[index].tag
-                        print "Match: " + result
-                        index += 1
+                        index_array.append(index); index += 1
                         type = "*"    
                     else:
                         sequence_rejected = True
                         entity_rejected = True
                 elif isinstance(type, int):
                     if sequence[index].tag == tag:
-                        result = result + " " + sequence[index].tag
-                        print "Match: " + result
-                        index += 1
+                        index_array.append(index); index += 1
                         entity_rejected = True
                     else:
                         sequence_rejected = True
                         entity_rejected = True
                 elif type == "?":
                     if sequence[index].tag == tag:
-                        result = result + " " + sequence[index].tag
-                        print "Match: " + result
-                        index += 1
+                        index_array.append(index); index += 1
                     entity_rejected = True
                 elif type == "*":
                     if sequence[index].tag == tag:
-                        result = result + " " + sequence[index].tag
-                        print "Match: " + result
-                        index += 1
+                        index_array.append(index); index += 1
                     else: 
                         entity_rejected = True
                 else:
                     print "Unsupported operator found!"
+        if index_array != []: parser.matches = parser.matches + [index_array]
+    
+    def update_tree(self, original_tree, nodes_to_chunk, chunk_name, array = []):
+        updated_tree = original_tree.copy()
+        nodes_to_chunk.reverse()
+        for index in nodes_to_chunk:
+            array.insert(0, original_tree[index])
+            updated_tree.pop(index)
+        updated_tree.insert(nodes_to_chunk.pop(), nltk.tree.Tree(chunk_name, array))
+        print updated_tree; return updated_tree
         
-    def tagged_list_from_tree(self, tree): 
+    def tagged_list_from_tree(self, tree):
+        #Can some of this complexity be removed using tree.treepositions(order='inorder') 
         for index, child in enumerate(tree):
             if isinstance(child, nltk.tree.Tree):
                 parser.node_list.append(node("CHUNK", child, index))    
@@ -109,10 +104,10 @@ CHUNK: {<DT>?<NN.*>+<VBG><NN.*>+}
 
 grammar = [ 
            
-( "SUPERCHUNK1", [[("CHUNK"), ("+")], [("IN"), ("*")]] ),
+( "SUPERCHUNK", [[("CHUNK"), ("+")], [("IN"), ("?")], [("MD"), ("?")]] ),
            
 ]
 
-result = chunker()    
+result = chunker()
 parser = parser()
 parser.parse(result, grammar)
