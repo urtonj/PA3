@@ -1,17 +1,30 @@
 import nltk
 from nltk.corpus import treebank
 
+## Possible problem in traversal function with tree type?
+## Algo should parse and output a new tree if found, call parse
+## on the output tree. Otherwise continue.
+
 class parser():
     
     tree = None; node_list = []; sequences = []; matches = []
     
     def parse(self, tree, grammar):
-        parser.tree = tree
+        parser.tree = tree; parser.sequences = []
+        parser.matches = []; parser.node_list = []
+        print "Input tree: " 
+        print tree
         parser.generate_subsequences(parser.tagged_list_from_tree(parser.tree))
+        print parser.sequences
         for rule in grammar:
             for sequence in parser.sequences:
+                if parser.matches != []:
+                    continue
                 parser.test_sequence(sequence, rule)
-            parser.update_tree(parser.tree, parser.matches[0], rule[0])
+                
+            print 'New tree: '
+            parser.parse(parser.update_tree(parser.tree, parser.matches[0], rule[0]), grammar)
+            
     
     def test_sequence(self, sequence, rule):
         index = 0; sequence_rejected = False; index_array = []
@@ -65,6 +78,7 @@ class parser():
         #Can some of this complexity be removed using tree.treepositions(order='inorder') 
         for index, child in enumerate(tree):
             if isinstance(child, nltk.tree.Tree):
+                #print "Child: " + str(child[0])
                 parser.node_list.append(node("CHUNK", child, index))    
             elif not isinstance(child, str):
                 parser.node_list.append(node(child[1], child[1], index)) 
