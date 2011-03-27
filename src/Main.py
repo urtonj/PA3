@@ -1,37 +1,39 @@
 import nltk
 from nltk.corpus import treebank
 
-## Possible problem in traversal function with tree type?
-## Algo should parse and output a new tree if found, call parse
-## on the output tree. Otherwise continue.
-
 class parser():
     
-    tree = None; node_list = []; sequences = []; matches = []
+    tree = None; node_list = []; sequences = []; matches = []; position = 0
     
     def parse(self, tree, grammar):
         parser.tree = tree; parser.sequences = []
-        parser.matches = []; parser.node_list = []
-        print "Input tree: " 
+        parser.node_list = []
+        print "\n\nInput tree: " 
         print tree
-        parser.generate_subsequences(parser.tagged_list_from_tree(parser.tree))
-        print parser.sequences
         for rule in grammar:
-            for sequence in parser.sequences:
-                if parser.matches != []:
-                    continue
-                parser.test_sequence(sequence, rule)
-                
-            print 'New tree: '
-            parser.parse(parser.update_tree(parser.tree, parser.matches[0], rule[0]), grammar)
-            
+            parser.test_all_sequences(rule)   
     
+    def test_all_sequences(self, rule):
+        parser.node_list = []; updated_sequence_list = False; parser.position = 0
+        parser.generate_subsequences(parser.tagged_list_from_tree(parser.tree, rule))
+        for sequence in parser.sequences:
+            if updated_sequence_list == True: continue
+            parser.matches = []
+            parser.test_sequence(sequence, rule)
+            if parser.matches != []:
+                updated_sequence_list = True
+                parser.tree = parser.update_tree(parser.tree, parser.matches, rule[0], parser.position)
+                parser.sequences = []; parser.node_list = []
+                parser.generate_subsequences(parser.tagged_list_from_tree(parser.tree, rule))
+                parser.test_all_sequences(rule)                
+                #parser.position += len(parser.matches)
+            else: parser.position += 1
+                
     def test_sequence(self, sequence, rule):
         index = 0; sequence_rejected = False; index_array = []
-        print "\n\nTesting sequence: " + parser.print_sequence(sequence) + " with rule: " + str(rule[1])
+        #print "\n\nTesting sequence: " + parser.print_sequence(sequence) + " with rule: " + str(rule[1]) + "\n\n"
         for entity in rule[1]:
-            if sequence_rejected:
-                continue
+            if sequence_rejected: continue
             entity_rejected = False; tag = entity[0]; type = entity[1]
             while not entity_rejected:
                 if index >= len(sequence):
@@ -63,50 +65,67 @@ class parser():
                         entity_rejected = True
                 else:
                     print "Unsupported operator found!"
-        if index_array != []: parser.matches = parser.matches + [index_array]
+        if index_array != []: parser.matches = index_array
     
-    def update_tree(self, original_tree, nodes_to_chunk, chunk_name, array = []):
+    def update_tree(self, original_tree, nodes_to_chunk, chunk_name, offset):
+        array = []; 
         updated_tree = original_tree.copy()
         nodes_to_chunk.reverse()
+        for n in range(len(nodes_to_chunk)): 
+            nodes_to_chunk[n] = nodes_to_chunk[n] + offset
         for index in nodes_to_chunk:
             array.insert(0, original_tree[index])
             updated_tree.pop(index)
-        updated_tree.insert(nodes_to_chunk.pop(), nltk.tree.Tree(chunk_name, array))
-        print updated_tree; return updated_tree
+        updated_tree.insert(offset, nltk.tree.Tree(chunk_name, array))
+        print "Updated tree: \n" + str(updated_tree); return updated_tree
         
-    def tagged_list_from_tree(self, tree):
-        #Can some of this complexity be removed using tree.treepositions(order='inorder') 
-        for index, child in enumerate(tree):
-            if isinstance(child, nltk.tree.Tree):
-                #print "Child: " + str(child[0])
-                parser.node_list.append(node("CHUNK", child, index))    
-            elif not isinstance(child, str):
-                parser.node_list.append(node(child[1], child[1], index)) 
+    def tagged_list_from_tree(self, tree, rule):
+        for n in range(len(tree)):
+            if isinstance(tree[n], tuple):
+                parser.node_list.append(node(tree[n][1], tree[n], n))
             else:
-                parser.tagged_list_from_tree(child)
+                if tree[n].node == "CHUNK":
+                    parser.node_list.append(node('CHUNK', tree[n], n))
+                else:
+                    parser.node_list.append(node(rule[0], tree[n], n))
+                #elif tree[n].node == 'SUPERCHUNK':
+                #    parser.node_list.append(node('SUPERCHUNK', tree[n], n))
+                #else: 
+                #    print tree[n]
+                #    print "Unrecognized tree character..."
+
 
     def generate_subsequences(self, list):
         for index in range(len(parser.node_list)):
-            parser.sequences = parser.sequences + [parser.node_list[index:len(parser.node_list)]]
+            parser.sequences = parser.sequences + [parser.node_list[index:]]
     
     def print_sequence(self, sequence):
         str = ""
-        for item in sequence:
-            str = str + " " + item.tag
+        for item in sequence: str = str + " " + item.tag
         return str
     
 class node():
     def __init__(self, tag, word, index): 
-        self.tag = tag; self.word = word; self.index = index
-        
+        self.tag = tag; self.word = word; self.index = index  
     def print_node(self):
         print "TAG: %s || Body: %s || Index: %s" % (self.tag, self.word, self.index) 
                          
-def chunker():
+def chunker(files):
     parser = nltk.RegexpParser(original_grammar)
-    test_tree = treebank.tagged_sents()[0]
+    test_tree = treebank.tagged_sents(files)
     return parser.parse(test_tree)
-    
+
+def get_chunked_trees(trees = []):
+    original_parser = nltk.RegexpParser(original_grammar) 
+    corpus = treebank.tagged_sents(test_set)
+    for tree in corpus: trees += [original_parser.parse(tree)]
+    return trees
+     
+def start(parser):
+    trees = get_chunked_trees()
+    for tree in trees:
+        parser.parse(tree, grammar)
+      
 original_grammar = r"""
 CHUNK: {<DT>?<NN.*>+<VBG><NN.*>+}
        {<DT><CD>?<VBN><NN.*>*}
@@ -119,9 +138,17 @@ CHUNK: {<DT>?<NN.*>+<VBG><NN.*>+}
 grammar = [ 
            
 ( "SUPERCHUNK", [[("CHUNK"), ("+")], [("IN"), ("?")], [("MD"), ("?")]] ),
-           
+( "SUPERCHUNK-VB", [[("VB"), (1)]] )
+
 ]
 
-result = chunker()
+test_set = ['wsj_0001.mrg']
+
 parser = parser()
-parser.parse(result, grammar)
+start(parser)
+
+#result = chunker(test_set)
+#parser = parser()
+#for sentence in test_set:
+#    print sentence
+#parser.parse(result, grammar)
