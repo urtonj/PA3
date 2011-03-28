@@ -1,32 +1,33 @@
-import nltk
-from nltk.corpus import treebank
+import nltk; from nltk.corpus import treebank
 
 class parser():
     
-    tree = None; node_list = []; sequences = []; matches = []; position = 0
-    
+    node_list = []; sequences = []; matches = []; 
+    position = 0; output_tree = None; tree = None;         
+        
     def parse(self, tree, grammar):
         parser.tree = tree; parser.sequences = []
-        parser.node_list = []
-        print "\n\nInput tree: " 
-        print tree
+        print "Input tree: \n%s\n" % tree 
         for rule in grammar:
-            parser.test_all_sequences(rule)   
+            parser.test_all_sequences(rule) 
+        print "Output tree: \n%s\n\n" % parser.output_tree 
+        return parser.output_tree 
     
     def test_all_sequences(self, rule):
-        parser.node_list = []; updated_sequence_list = False; parser.position = 0
-        parser.generate_subsequences(parser.tagged_list_from_tree(parser.tree, rule))
+        parser.node_list = []; parser.position = 0; new_sequence = False
+        parser.generate_subsequences(parser.list_from_tree(parser.tree, rule))
         for sequence in parser.sequences:
-            if updated_sequence_list == True: continue
+            if new_sequence == True: continue
             parser.matches = []
             parser.test_sequence(sequence, rule)
             if parser.matches != []:
-                updated_sequence_list = True
-                parser.tree = parser.update_tree(parser.tree, parser.matches, rule[0], parser.position)
+                new_sequence = True
+                parser.tree = parser.update_tree(parser.tree, parser.matches, 
+                                                 rule[0], parser.position)
                 parser.sequences = []; parser.node_list = []
-                parser.generate_subsequences(parser.tagged_list_from_tree(parser.tree, rule))
+                parser.generate_subsequences(parser.list_from_tree(parser.tree, 
+                                                                   rule))
                 parser.test_all_sequences(rule)                
-                #parser.position += len(parser.matches)
             else: parser.position += 1
                 
     def test_sequence(self, sequence, rule):
@@ -36,8 +37,7 @@ class parser():
             if sequence_rejected: continue
             entity_rejected = False; tag = entity[0]; type = entity[1]
             while not entity_rejected:
-                if index >= len(sequence):
-                    continue 
+                if index >= len(sequence): continue 
                 elif index > 0 and (sequence[index].tag == ","):
                     index_array.append(index); index += 1
                 elif type == "+":
@@ -61,15 +61,12 @@ class parser():
                 elif type == "*":
                     if sequence[index].tag == tag:
                         index_array.append(index); index += 1
-                    else: 
-                        entity_rejected = True
-                else:
-                    print "Unsupported operator found!"
+                    else: entity_rejected = True
+                else: print "Unsupported operator found!"
         if index_array != []: parser.matches = index_array
     
     def update_tree(self, original_tree, nodes_to_chunk, chunk_name, offset):
-        array = []; 
-        updated_tree = original_tree.copy()
+        array = []; updated_tree = original_tree.copy()
         nodes_to_chunk.reverse()
         for n in range(len(nodes_to_chunk)): 
             nodes_to_chunk[n] = nodes_to_chunk[n] + offset
@@ -77,9 +74,9 @@ class parser():
             array.insert(0, original_tree[index])
             updated_tree.pop(index)
         updated_tree.insert(offset, nltk.tree.Tree(chunk_name, array))
-        print "Updated tree: \n" + str(updated_tree); return updated_tree
+        parser.output_tree = updated_tree; return updated_tree
         
-    def tagged_list_from_tree(self, tree, rule):
+    def list_from_tree(self, tree, rule):
         for n in range(len(tree)):
             if isinstance(tree[n], tuple):
                 parser.node_list.append(node(tree[n][1], tree[n], n))
@@ -88,12 +85,6 @@ class parser():
                     parser.node_list.append(node('CHUNK', tree[n], n))
                 else:
                     parser.node_list.append(node(rule[0], tree[n], n))
-                #elif tree[n].node == 'SUPERCHUNK':
-                #    parser.node_list.append(node('SUPERCHUNK', tree[n], n))
-                #else: 
-                #    print tree[n]
-                #    print "Unrecognized tree character..."
-
 
     def generate_subsequences(self, list):
         for index in range(len(parser.node_list)):
@@ -107,13 +98,8 @@ class parser():
 class node():
     def __init__(self, tag, word, index): 
         self.tag = tag; self.word = word; self.index = index  
-    def print_node(self):
-        print "TAG: %s || Body: %s || Index: %s" % (self.tag, self.word, self.index) 
-                         
-def chunker(files):
-    parser = nltk.RegexpParser(original_grammar)
-    test_tree = treebank.tagged_sents(files)
-    return parser.parse(test_tree)
+    #def print_node(self):
+    #    print "TAG: %s || Body: %s || Index: %s" % (self.tag, self.word, self.index) 
 
 def get_chunked_trees(trees = []):
     original_parser = nltk.RegexpParser(original_grammar) 
@@ -123,8 +109,7 @@ def get_chunked_trees(trees = []):
      
 def start(parser):
     trees = get_chunked_trees()
-    for tree in trees:
-        parser.parse(tree, grammar)
+    for tree in trees: parser.parse(tree, grammar)
       
 original_grammar = r"""
 CHUNK: {<DT>?<NN.*>+<VBG><NN.*>+}
@@ -135,20 +120,11 @@ CHUNK: {<DT>?<NN.*>+<VBG><NN.*>+}
        {<EX>}  
 """
 
-grammar = [ 
-           
+grammar = [    
 ( "SUPERCHUNK", [[("CHUNK"), ("+")], [("IN"), ("?")], [("MD"), ("?")]] ),
-( "SUPERCHUNK-VB", [[("VB"), (1)]] )
-
 ]
 
 test_set = ['wsj_0001.mrg']
 
 parser = parser()
 start(parser)
-
-#result = chunker(test_set)
-#parser = parser()
-#for sentence in test_set:
-#    print sentence
-#parser.parse(result, grammar)
